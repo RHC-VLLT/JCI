@@ -57,33 +57,39 @@ def recommend(movie_title):
         recommendations.append(df.iloc[idx]['title'])
 
     return recommendations
-
-# ------------------------------------------------------------------------------
-# 4. INTERFACE UTILISATEUR (UI)
+#------------------------------------------------------------------------------
+# 4. INTERFACE UTILISATEUR (UI) MODIFIÉE
 # ------------------------------------------------------------------------------
 st.title('🎬 Mon Recommandeur de Films')
-st.markdown("Bienvenue ! Sélectionnez un film que vous aimez pour découvrir des pépites similaires.")
+st.markdown("Bienvenue ! Cherchez un film pour découvrir des pépites similaires.")
 
-# Vérification de sécurité si le chargement a échoué
+# Vérification de sécurité
 if df is not None:
-    # Liste déroulante
+    
+    # --- MODIFICATION ICI : SEARCHBAR ---
+    # On utilise index=None pour ne rien sélectionner au début
+    # On utilise placeholder pour inviter à la recherche
     selected_movie = st.selectbox(
-        'Quel film avez-vous aimé ?',
-        df['title'].values
+        label="Barre de recherche",
+        options=df['title'].values,
+        index=None,                  # Aucun film sélectionné par défaut
+        placeholder="🔍 Tapez le nom d'un film (ex: Batman)...", # Texte grisé
+        label_visibility="collapsed" # Cache le label "Barre de recherche" pour faire plus épuré
     )
 
-    # Bouton de validation
-    if st.button('Lancer la recommandation', type="primary"):
+    # On lance la recommandation seulement si un film est choisi
+    if selected_movie:
+        st.write(f"Recherche pour : **{selected_movie}**") # Petit feedback visuel
         
-        with st.spinner('Analyse des films en cours...'):
+        with st.spinner('Calcul en cours...'):
             recos = recommend(selected_movie)
         
-        # Affichage des résultats
-        st.subheader(f"Si vous aimez **{selected_movie}**, essayez :")
+        st.divider() # Ligne de séparation esthétique
+        st.subheader("Nos recommandations :")
         
-        # Affichage propre en cartes ou liste
+        # Affichage
         for i, movie in enumerate(recos):
             st.success(f"**{i+1}.** {movie}")
 
 else:
-    st.warning("Veuillez générer les fichiers .pkl dans le notebook avant de lancer l'app.")
+    st.warning("Les données ne sont pas chargées.")
