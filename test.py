@@ -27,7 +27,7 @@ st.markdown("""
         box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         text-align: center;
         display: block;
-        margin-top: 15px; /* Pour centrer verticalement */
+        margin-top: 15px;
     }
     .genre-tag {
         background: #FF9800;
@@ -47,15 +47,6 @@ st.markdown("""
         display: inline-block;
         font-size: 0.9em;
     }
-    .match-score {
-        background: #9C27B0;
-        color: white;
-        padding: 3px 8px;
-        border-radius: 10px;
-        font-size: 0.8em;
-        margin-left: 10px;
-    }
-    /* Correction de la taille du titre dans le container */
     [data-testid="stContainer"] h3 {
         margin-top: 0;
     }
@@ -79,24 +70,23 @@ def extract_keywords(raw):
         return str(raw)
 
 def build_text_features(row):
-    """Construit les features textuelles séparées pour le modèle hybride."""
+    """Construit les features textuelles séparées pour le modèle (uniquement keywords et genres utilisés pour le score)."""
     
+    # Keywords (Style/Réalisateur)
     kw = extract_keywords(row.get("keywords", ""))
     keywords = kw if kw.strip() else ""
     
+    # Overview (Synopsis) - Non utilisé dans le score, mais utile pour l'affichage
     overview = ""
     if str(row.get("movie_overview_fr", "")).strip():
         overview = str(row["movie_overview_fr"])
     elif str(row.get("movie_overview", "")).strip():
         overview = str(row["movie_overview"])
     
-    tagline = str(row.get("movie_tagline_fr", "")).strip()
-    if not tagline:
-        tagline = str(row.get("movie_tagline", "")).strip()
-
+    # Genres
     genres = str(row.get("movie_genres_y", "")).strip()
     
-    return keywords, overview, genres, tagline
+    return keywords, overview, genres
 
 def simple_substring_search_movies(query, df_movie, limit=15):
     """Recherche simple de sous-chaîne (case-insensitive) pour trouver le film source."""
@@ -105,6 +95,7 @@ def simple_substring_search_movies(query, df_movie, limit=15):
     
     query_lower = query.lower()
     
+    # Recherche dans le titre original, car c'est la clé de matching du modèle
     mask = df_movie["movie_original_title"].str.lower().str.contains(query_lower, na=False)
     
     result = df_movie[mask].copy()
@@ -146,9 +137,10 @@ def load_data():
     try:
         df_movie = pd.read_csv("movie.csv")
         
+        # NOTE : 'title' est utilisé pour le titre français/localisé
         text_cols = ["keywords", "movie_overview_fr", "movie_overview",
                      "movie_tagline_fr", "movie_genres_y", "movie_original_title",
-                     "movie_poster_url_fr"] # <-- Ajout de la colonne d'URL
+                     "movie_poster_url_fr", "title"] # <-- Correction: utilisation de 'title'
         for col in text_cols:
             if col in df_movie.columns:
                 df_movie[col] = df_movie[col].fillna("")
@@ -159,8 +151,10 @@ def load_data():
             if col in df_movie.columns:
                 df_movie[col] = pd.to_numeric(df_movie[col], errors='coerce').fillna(0)
         
-        df_movie[["keywords_text", "overview_text", "genres_text", "tagline_text"]] = \
-            df_movie.apply(build_text_features, axis=1, result_type='expand')
+        text_features = df_movie.apply(build_text_features, axis=1, result_type='expand')
+        df_movie["keywords_text"] = text_features[0]
+        df_movie["overview_text"] = text_features[1]
+        df_movie["genres_text"] = text_features[2]
         
         df_people = pd.read_csv("intervenants.csv").rename(columns={
             "intervenant_primaryName": "person_name",
@@ -181,36 +175,25 @@ def load_data():
 
 @st.cache_resource
 def build_advanced_recommender(df_movie):
-    """Construit les matrices de features et les scalers pour le système hybride."""
+    """Construit uniquement les matrices Keywords et Genres (les seules utilisées dans le score)."""
     try:
         # 1. TF-IDF sur keywords
         tfidf_keywords = TfidfVectorizer(max_features=500, ngram_range=(1, 2), stop_words='english')
         keywords_matrix = tfidf_keywords.fit_transform(df_movie["keywords_text"])
         
-        # 2. TF-IDF sur overview
-        tfidf_overview = TfidfVectorizer(max_features=300, stop_words='english')
-        overview_matrix = tfidf_overview.fit_transform(df_movie["overview_text"])
-        
-        # 3. TF-IDF sur genres
+        # 2. TF-IDF sur genres
         tfidf_genres = TfidfVectorizer(max_features=50)
         genres_matrix = tfidf_genres.fit_transform(df_movie["genres_text"])
         
-        # 4. Features numériques
-        numeric_features = df_movie[["movie_vote_average_tmdb", "movie_popularity", 
-                                      "movie_startYear", "movie_runtimeMinutes"]].values
-        
-        scaler = MinMaxScaler()
-        numeric_normalized = scaler.fit_transform(numeric_features)
+        # Les matrices factices sont créées pour satisfaire les fonctions de recommandation/détails
+        overview_matrix = np.zeros((len(df_movie), 1))
+        numeric_features = np.zeros((len(df_movie), 1))
         
         return {
             "keywords_matrix": keywords_matrix,
-            "overview_matrix": overview_matrix,
+            "overview_matrix": overview_matrix, 
             "genres_matrix": genres_matrix,
-            "numeric_features": numeric_normalized,
-            "tfidf_keywords": tfidf_keywords,
-            "tfidf_overview": tfidf_overview,
-            "tfidf_genres": tfidf_genres,
-            "scaler": scaler
+            "numeric_features": numeric_features, 
         }
     except Exception as e:
         st.error(f"❌ Erreur lors de la construction du modèle de recommandation: {e}")
@@ -220,7 +203,7 @@ def recommend_movies_hybrid(movie_title, df_movie, recommender_data,
                            weight_keywords, weight_overview,
                            weight_genres, weight_numeric,
                            n_recommendations=5):
-    """Calcule et renvoie les recommandations hybrides."""
+    """Calcule et renvoie les recommandations purement basées sur Keywords et Genres."""
     
     matches = df_movie[df_movie["movie_original_title"].str.lower() == movie_title.lower()]
     if matches.empty:
@@ -234,22 +217,16 @@ def recommend_movies_hybrid(movie_title, df_movie, recommender_data,
         recommender_data["keywords_matrix"]
     )[0]
     
-    sim_overview = cosine_similarity(
-        recommender_data["overview_matrix"][movie_idx],
-        recommender_data["overview_matrix"]
-    )[0]
+    # Les similarités pour Synopsis et Caractéristiques sont de 0.0 (simplicité du code)
+    sim_overview = np.zeros(len(df_movie))
+    sim_numeric = np.zeros(len(df_movie))
     
     sim_genres = cosine_similarity(
         recommender_data["genres_matrix"][movie_idx],
         recommender_data["genres_matrix"]
     )[0]
     
-    sim_numeric = cosine_similarity(
-        [recommender_data["numeric_features"][movie_idx]],
-        recommender_data["numeric_features"]
-    )[0]
-    
-    # Score hybride pondéré
+    # Score hybride pondéré (Seuls Keywords et Genres ont un poids > 0)
     hybrid_score = (
         weight_keywords * sim_keywords +
         weight_overview * sim_overview +  
@@ -259,33 +236,28 @@ def recommend_movies_hybrid(movie_title, df_movie, recommender_data,
     
     # Récupérer les top N
     similar_indices = np.argsort(hybrid_score)[::-1]
-    similar_indices_final = []
-    for idx in similar_indices:
-        if idx != movie_idx:
-            similar_indices_final.append(idx)
-        if len(similar_indices_final) >= n_recommendations:
-            break
+    similar_indices_final = [idx for idx in similar_indices if idx != movie_idx][:n_recommendations]
     
     # Construire le résultat
     recommendations = []
     for idx in similar_indices_final:
         movie_data = df_movie.iloc[idx]
         
+        # Déterminer le titre à afficher (Localisé/Français > Original)
+        display_title = movie_data["title"] if movie_data["title"] else movie_data["movie_original_title"]
+        
         recommendations.append({
-            "title": movie_data["movie_original_title"],
+            "title": display_title, # <-- Titre en français/localisé
             "tconst": movie_data["tconst"],
             "similarity": hybrid_score[idx] * 100,
             "sim_keywords": sim_keywords[idx] * 100,
-            "sim_overview": sim_overview[idx] * 100,
+            "sim_overview": 0.0, 
             "sim_genres": sim_genres[idx] * 100,
-            "sim_numeric": sim_numeric[idx] * 100,
+            "sim_numeric": 0.0, 
             "genres": movie_data.get("movie_genres_y", "N/A"),
             "overview": movie_data.get("movie_overview_fr", movie_data.get("movie_overview", "")),
             "tagline": movie_data.get("movie_tagline_fr", movie_data.get("movie_tagline", "")),
-            "poster": movie_data.get("movie_poster_url_fr", ""), # <-- Récupération de l'URL du poster
-            "year": movie_data.get("movie_startYear", "N/A"),
-            "rating": movie_data.get("movie_vote_average_tmdb", "N/A"),
-            "runtime": movie_data.get("movie_runtimeMinutes", "N/A")
+            "poster": movie_data.get("movie_poster_url_fr", ""), 
         })
     
     return recommendations, None
@@ -316,10 +288,8 @@ with st.sidebar:
     weight_genres_raw = st.slider("🎭 Genres (Catégorie)", 0.0, 1.0, 0.50, 0.05,
                               help="Importance des catégories de films (Crime, Thriller...).")
     # Valeurs forcées à 0.0 pour l'exclusion (visuel)
-    weight_overview_raw = st.slider("📝 Synopsis (Contenu Narratif)", 0.0, 1.0, 0.00, 0.05, disabled=True,
-                                help="Ce facteur est exclu de la recommandation (poids = 0).")
-    weight_numeric_raw = st.slider("📊 Caractéristiques (Note/Pop./Année)", 0.0, 1.0, 0.00, 0.05, disabled=True,
-                               help="Ce facteur est exclu de la recommandation (poids = 0).")
+    weight_overview_raw = st.slider("📝 Synopsis (Exclu)", 0.0, 1.0, 0.00, 0.05, disabled=True)
+    weight_numeric_raw = st.slider("📊 Caractéristiques (Exclu)", 0.0, 1.0, 0.00, 0.05, disabled=True)
     # ------------------------------------------------------------------------
     
     # Normalisation pour que le total fasse 1.0
@@ -331,20 +301,11 @@ with st.sidebar:
         weight_genres = weight_genres_raw / total_weight
         weight_numeric = 0.0
     else:
-        # Fallback si le total est zéro
         weight_keywords, weight_overview, weight_genres, weight_numeric = 0.5, 0.0, 0.5, 0.0
         total_weight = 1.0
     
     st.markdown("---")
     st.metric("Total Pondération Normalisée", f"1.00")
-    
-    st.markdown("---")
-    st.subheader("📊 Statistiques des données")
-    col_a, col_b = st.columns(2)
-    with col_a:
-        st.metric("Films", f"{len(df_movie):,}")
-    with col_b:
-        st.metric("Personnes", f"{len(df_people):,}")
 
 # Zone de recherche
 col1, col2 = st.columns([5, 1])
@@ -371,18 +332,19 @@ if search_query and len(search_query) >= 2:
         for _, row in matches.iterrows():
             genres = row.get("movie_genres_y", "")
             
-            display_name = f"{row['movie_original_title']}"
+            # Affichage dans la liste : Titre français/localisé > Titre original
+            display_name = row['title'] if row['title'] else row['movie_original_title']
             if genres:
                 display_name += f" - {genres}"
             
-            movie_options[display_name] = row['movie_original_title']
+            movie_options[display_name] = row['movie_original_title'] # On garde l'original pour le matching du modèle
         
         selected_display = st.selectbox("Sélectionnez le film source", list(movie_options.keys()))
         selected_movie = movie_options.get(selected_display)
         
         # Bouton de recommandation
         if selected_movie and st.button("🎯 Générer les recommandations", type="primary", use_container_width=True):
-            with st.spinner(f"🤖 Analyse basée sur le contenu pour **{selected_movie}**..."):
+            with st.spinner(f"🤖 Analyse basée sur le contenu pour **{selected_display}**..."):
                 recommendations, error = recommend_movies_hybrid(
                     selected_movie, df_movie, recommender_data,
                     weight_keywords, weight_overview, weight_genres, weight_numeric,
@@ -393,12 +355,12 @@ if search_query and len(search_query) >= 2:
                     st.error(f"❌ {error}")
                 elif recommendations:
                     st.markdown("---")
-                    st.subheader(f"✨ Top {len(recommendations)} Recommandation(s) pour **{selected_movie}**")
+                    st.subheader(f"✨ Top {len(recommendations)} Recommandation(s) pour **{selected_display}**")
                     
                     # Afficher les recommandations
                     for i, rec in enumerate(recommendations, 1):
                         with st.container(border=True):
-                            # Colonnes pour l'affiche, les infos et le score
+                            # Mise en page optimisée : Affiche (1.5), Infos (5), Score (1.5)
                             col_img, col_info, col_score = st.columns([1.5, 5, 1.5])
                             
                             # --- 1. AFFICHE ---
@@ -406,11 +368,11 @@ if search_query and len(search_query) >= 2:
                                 if rec['poster']:
                                     st.image(rec['poster'], width=180, caption=f"Film n°{i}")
                                 else:
-                                    st.warning("Affiche N/A")
+                                    st.info("Affiche N/A")
 
                             # --- 2. INFORMATIONS DÉTAILLÉES ---
                             with col_info:
-                                # Titre
+                                # Titre (en français/localisé)
                                 title_display = f"**{i}. {rec['title']}**"
                                 st.markdown(f"### {title_display}")
                                 
@@ -424,11 +386,11 @@ if search_query and len(search_query) >= 2:
                                 if rec['tagline'] and str(rec['tagline']) != 'nan':
                                     st.markdown(f"*{rec['tagline']}*")
                                 
-                                # Intervenants (à gauche, sous le texte)
+                                # Intervenants (Acteurs/Réalisateurs)
                                 people = get_people_for_movie(rec['tconst'], df_link, df_people, 5)
                                 if people:
                                     st.markdown("---")
-                                    st.markdown("**👥 Équipe Principale:**")
+                                    st.markdown("**👥 Équipe Principale :**")
                                     people_html = ""
                                     for person in people:
                                         people_html += f'<span class="person-badge">{person["name"]}</span> '
@@ -439,10 +401,7 @@ if search_query and len(search_query) >= 2:
                                     # Synopsis
                                     if rec['overview'] and str(rec['overview']) != 'nan':
                                         st.markdown("**📖 Synopsis :**")
-                                        overview_text = rec['overview']
-                                        if len(overview_text) > 300:
-                                            overview_text = overview_text[:300].rsplit(' ', 1)[0] + "..."
-                                        st.write(overview_text)
+                                        st.write(rec['overview'])
                                     
                                     st.markdown("---")
                                     st.markdown("**📊 Répartition du Score (Sim. Cosinus) :**")
