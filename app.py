@@ -191,7 +191,7 @@ with c_M:
     
     st.markdown("<h2 style='text-align: center; color: #D7001D;'>MOTEUR DE RECOMMANDATION</h2>", unsafe_allow_html=True)
 
-    if df is not None:
+    if df is not None: 
         
         selected_movie = st.selectbox(
             label="Barre de recherche",
