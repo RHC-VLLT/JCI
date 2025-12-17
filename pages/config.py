@@ -4,7 +4,6 @@ import base64
 
 # --- CONSTANTES ---
 SITE_BG_URL = "https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?q=80&w=2070&auto=format&fit=crop"
-LOGO_PATH = "../assets/Logo_JCI_1.png"
 BG_PATH = "../assets/Acceuil_Pic_1_Page_1.jpg"
 
 def load_base64_image(path):
@@ -17,48 +16,59 @@ def load_base64_image(path):
         return None
 
 def inject_css():
-    bg_64 = load_base64_image(BG_PATH)
-    bg_css_val = f"data:image/jpeg;base64,{bg_64}" if bg_64 else SITE_BG_URL
-
     st.markdown(f"""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Oswald:wght@700&display=swap');
 
     /* CONFIGURATION GLOBALE */
     html, body, [class*="css"], .stApp {{
         font-family: 'Montserrat', sans-serif;
         color: #FFFFFF !important;
-        background-color: #1a1a1a !important;
     }}
     
-    /* FOND IMMERSIF */
-    .stApp::before {{
-        content: ""; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-        background-image: url('{SITE_BG_URL}'); 
-        background-size: cover; background-position: center; 
-        opacity: 0.15; z-index: -2;
-    }}
-    .stApp::after {{
-        content: ""; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-        background-color: #000000; opacity: 0.85; z-index: -1;
+    /* FOND IMMERSIF FIXE */
+    .stApp {{
+        background-image: linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.85)), url('{SITE_BG_URL}');
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
     }}
 
-    /* HEADER NAVIGATION */
+    /* HEADER NAVIGATION : LOGO TEXTE "JUST CREUSE IT" */
+    div.stButton > button[key="logo_home"] {{
+        background-color: transparent !important;
+        border: none !important;
+        color: #D7001D !important;
+        font-family: 'Oswald', sans-serif !important;
+        font-size: 2.5rem !important; /* Taille augmentée pour l'effet logo */
+        font-weight: 900 !important;
+        letter-spacing: -1.5px !important;
+        text-transform: uppercase !important;
+        padding: 0 !important;
+        transition: 0.3s ease-in-out !important;
+        line-height: 1 !important;
+    }}
+    div.stButton > button[key="logo_home"]:hover {{
+        color: #ff4d4d !important;
+        transform: scale(1.03);
+        text-shadow: 0px 0px 15px rgba(215, 0, 29, 0.4);
+    }}
+
+    /* AUTRES BOUTONS DE NAVIGATION (FILMS / ACTEURS) */
     div.stButton > button[kind="secondary"] {{
         background-color: transparent !important;
         border: none !important;
         color: white !important;
         font-weight: 700 !important;
-        font-size: 1.1rem !important;
+        font-size: 1rem !important;
         text-transform: uppercase !important;
-        transition: 0.3s !important;
+        margin-top: 18px !important;
     }}
     div.stButton > button[kind="secondary"]:hover {{
         color: #D7001D !important;
-        transform: translateY(-2px);
     }}
 
-    /* BOUTONS ROUGES COLLÉS (STYLE DISNEY) */
+    /* BOUTONS ROUGES DÉTAILS */
     div.stButton > button[kind="primary"] {{ 
         color: white !important; 
         background-color: #D7001D !important; 
@@ -70,56 +80,25 @@ def inject_css():
         margin-top: -12px !important; 
         height: 45px !important;
     }}
-    div.stButton > button[kind="primary"]:hover {{
-        background-color: #ff0022 !important;
-    }}
-    
-    /* HERO BANNER */
-    .hero {{ 
-        width: 100%; height: 70vh; 
-        background-image: url('{bg_css_val}');
-        background-size: cover; background-position: center; 
-        display: flex; align-items: center; justify-content: flex-end; 
-        padding-right: 8%; border-radius: 20px; overflow: hidden;
-    }}
-    .hero-title {{ 
-        font-size: 3.8rem; font-weight: 900; line-height: 1.1; 
-        text-transform: uppercase; text-align: right;
-        text-shadow: 2px 2px 10px rgba(0,0,0,0.8);
-    }}
-    
-    /* CARTES FILMS */
-    .movie-card-container {{
-        display: flex;
-        flex-direction: column;
-        margin-bottom: 20px;
-    }}
 
+    /* AFFICHES FILMS */
     .movie-poster-img {{
         width: 100%;
         border-radius: 12px 12px 0 0 !important;
         object-fit: cover;
         aspect-ratio: 2/3;
         display: block;
-        border: 1px solid #333;
+        border: 1px solid rgba(255,255,255,0.1);
     }}
 
-    /* --- NOUVEAU STYLE CASTING (AGRANDI ET JOLI) --- */
-
+    /* VISUEL CASTING RONDS */
     .cast-img {{
-        width: 110px;
-        height: 110px;
-        border-radius: 50%;
-        object-fit: cover;
+        width: 110px; height: 110px;
+        border-radius: 50%; object-fit: cover;
         border: 3px solid #D7001D;
-        margin-bottom: 10px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-    }}
-
-    /* SELECTBOX */
-    div[data-baseweb="select"] {{
-        border: 1px solid #D7001D !important;
-        border-radius: 8px !important;
+        margin: 0 auto 10px auto;
+        display: block;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
     }}
 
     header, footer, #MainMenu {{visibility: hidden;}}

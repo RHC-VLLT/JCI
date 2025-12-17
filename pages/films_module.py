@@ -26,26 +26,23 @@ def show_films():
         with col2:
             st.markdown(f"<h1 style='color:#D7001D; font-size:3.5rem; margin-bottom:0;'>{m['display_title'].upper()}</h1>", unsafe_allow_html=True)
             st.markdown(f"<p style='font-weight:700; color:#888;'>{int(m['movie_startYear'])} • {m['movie_genres_y']}</p>", unsafe_allow_html=True)
-            st.markdown(f'<div style="border-left:4px solid #D7001D; padding-left:15px; font-style:italic; margin-bottom:20px;">"{m.get("movie_overview_fr") or m.get("movie_overview") or "Pas de résumé disponible."}"</div>', unsafe_allow_html=True)
+            st.markdown(f'''<div style="border-left:4px solid #D7001D; padding-left:15px; font-style:italic; margin-bottom:20px;">"{m.get("movie_overview_fr") or m.get("movie_overview") or "Résumé non disponible."}"</div>''', unsafe_allow_html=True)
             
             st.write(f"**Réalisation :** {', '.join(reals)}")
             
-            # --- NOUVEAU VISUEL CASTING ---
             st.markdown("<br><h3 style='color:#D7001D; text-transform:uppercase;'>Casting</h3>", unsafe_allow_html=True)
-            c_cols = st.columns(4) # 4 colonnes pour que ce soit plus gros
-            for i, act in enumerate(casting[:8]): # On en affiche jusqu'à 8
+            c_cols = st.columns(4) 
+            for i, act in enumerate(casting[:8]):
                 with c_cols[i % 4]:
                     pic = act.get('photo')
                     pic = pic if pd.notna(pic) and str(pic).lower() not in ["nan", ""] else DEFAULT_USER_IMG
                     
-                    # Rendu HTML de la carte
                     st.markdown(f'''
-                        <div class="cast-card">
+                        <div class="cast-container">
                             <img src="{pic}" class="cast-img">
                         </div>
                     ''', unsafe_allow_html=True)
                     
-                    # Bouton pour le profil (sécurisé)
                     act_id = act.get('nconst') or act.get('nconst_x') or act.get('nconst_y')
                     if act_id:
                         if st.button(act.get("name", "Inconnu"), key=f"c_{act_id}_{i}", use_container_width=True):
@@ -53,14 +50,13 @@ def show_films():
                             st.session_state.current_page = "ACTEURS"
                             st.rerun()
 
-        # SECTION TRAILER
         tr = m.get('trailer_url_fr') or m.get('youtube_url')
         if pd.notna(tr) and "http" in str(tr):
             st.markdown("---")
+            st.markdown("<h3 style='text-transform:uppercase;'>🎬 Bande-Annonce Officielle</h3>", unsafe_allow_html=True)
             st.video(tr)
 
     else:
-        # Grille catalogue standard
         st.markdown("<h1 style='text-align:center;'>BIBLIOTHÈQUE</h1>", unsafe_allow_html=True)
         c1, c2 = st.columns([3, 1])
         with c1: search = st.text_input("Titre", placeholder="Chercher un film...", label_visibility="collapsed", key="search_f")
@@ -73,7 +69,8 @@ def show_films():
         if genre != "Tous les genres": df_f = df_f[df_f['movie_genres_y'].str.contains(genre, na=False)]
 
         limit = 20
-        p = st.number_input("Page", min_value=1, max_value=math.ceil(len(df_f)/limit) or 1, step=1)
+        total_p = math.ceil(len(df_f)/limit) or 1
+        p = st.number_input("Page", min_value=1, max_value=total_p, step=1)
         grid = st.columns(5)
         for idx, (_, row) in enumerate(df_f.iloc[(p-1)*limit : p*limit].iterrows()):
             with grid[idx % 5]:
