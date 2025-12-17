@@ -11,19 +11,24 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Chargement Assets
+# ==============================================================================
+# CHARGEMENT ASSETS
+# ==============================================================================
+# Logo
 logo_b64 = config.load_base64_image(config.LOGO_PATH)
-bg_b64 = config.load_base64_image(config.BG_PATH)
 logo_url = f"data:image/png;base64,{logo_b64}" if logo_b64 else ""
 
-# Injection CSS
-config.inject_css(bg_b64)
+# ICI : Chargement de l'image PopCorn.jpg via le chemin défini dans config
+bg_banner_b64 = config.load_base64_image(config.BG_PATH)
+
+# Injection du CSS global
+config.inject_css()
 
 # 2. CHARGEMENT DONNÉES
 df_movie, df_people, df_link = backend.load_data()
 recommender_data = backend.build_recommender(df_movie)
 
-# 3. GESTION ÉTAT (SESSION STATE)
+# 3. GESTION ÉTAT
 if 'recommended_films' not in st.session_state:
     st.session_state['recommended_films'] = None
     st.session_state['last_search_title'] = ""
@@ -47,10 +52,16 @@ if not detail_id:
             st.markdown('<div class="logo-text-backup">JUST CREUSE IT</div>', unsafe_allow_html=True)
             
     with col_nav_center:
-        st.markdown('<div class="modern-navbar-container"><a href="#" class="active">Accueil</a><a href="#">Films</a><a href="#">Genre</a></div>', unsafe_allow_html=True)
+        st.markdown('<div class="modern-navbar-container"><a href="#" class="active">Accueil</a><a href="#">Films</a><a href="#">Acteurs</a></div>', unsafe_allow_html=True)
 
-    # Hero
-    bg_img_style = f"background-image: url('data:image/jpeg;base64,{bg_b64}');" if bg_b64 else f"background-image: url('{config.SITE_BG_URL}');"
+    # --- SECTION HERO (BANNIERE) ---
+    # Si l'image PopCorn a bien été chargée, on l'utilise
+    if bg_banner_b64:
+        bg_img_style = f"background-image: url('data:image/jpeg;base64,{bg_banner_b64}');"
+    else:
+        # Sinon (sécurité), on met l'image de la salle de cinéma
+        bg_img_style = f"background-image: url('{config.SITE_BG_URL}');"
+    
     st.markdown(f"""
     <div class="hero" style="{bg_img_style}">
         <div class="hero-overlay"></div>
@@ -100,6 +111,7 @@ if not detail_id:
                     st.rerun()
         
         if not st.session_state.get('show_all_recos') and len(filtered) > 5:
+            st.markdown("<br>", unsafe_allow_html=True)
             if st.button("VOIR PLUS"):
                 st.session_state['show_all_recos'] = True
                 st.rerun()
@@ -118,6 +130,17 @@ else:
     c1, c2 = st.columns([1, 2])
     with c1:
         st.image(get_poster_url(m), use_container_width=True)
+        
+        # Bloc stats
+        pop = m.get("movie_popularity", 0)
+        vote = m.get("movie_vote_average_tmdb", 0)
+        if pop or vote:
+            st.markdown(f"""
+            <div style="margin-top:20px;background:rgba(255,255,255,0.05);padding:15px;border-radius:15px;border:1px solid rgba(255,255,255,0.1);">
+                <p style="color:#888;font-size:0.7rem;text-transform:uppercase;margin:0;">Popularité / Note</p>
+                <p style="color:white;font-weight:800;font-size:1.1rem;margin:0;">{pop} | {vote}/10</p>
+            </div>""", unsafe_allow_html=True)
+
     with c2:
         st.title(m['display_title'])
         st.subheader(f"{int(m['movie_startYear'])} • {int(m['movie_runtimeMinutes'])} min")
@@ -126,6 +149,18 @@ else:
         st.markdown(f"**Réalisation:** {', '.join(reals)}")
         st.markdown(f"**Casting:** {', '.join(acts)}")
         
-        if st.button("RETOUR", use_container_width=True):
+        # --- INTEGRATION LECTEUR VIDEO ---
+        tr_url = m.get('trailer_url_fr') if pd.notna(m.get('trailer_url_fr')) else m.get('youtube_url', "")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        if pd.notna(tr_url) and "http" in str(tr_url):
+            st.markdown("#### 🎥 Bande-annonce")
+            st.video(tr_url)
+        else:
+            st.info("Bande-annonce non disponible.")
+
+        # Bouton Retour
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("RETOUR A LA LISTE", use_container_width=True):
             st.session_state['detail_tconst'] = None
             st.rerun()
