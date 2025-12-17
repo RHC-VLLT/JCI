@@ -2,13 +2,12 @@ import streamlit as st
 import os
 import base64
 
-# --- CONSTANTES ET CHEMINS ---
+# --- CONSTANTES ---
 SITE_BG_URL = "https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?q=80&w=2070&auto=format&fit=crop"
 LOGO_PATH = "../assets/Logo_JCI_1.png"
 BG_PATH = "../assets/Acceuil_Pic_1_Page_1.jpg"
 
 def load_base64_image(path):
-    """Charge une image locale et la convertit en chaîne Base64."""
     if not os.path.exists(path):
         return None
     try:
@@ -18,7 +17,6 @@ def load_base64_image(path):
         return None
 
 def inject_css():
-    """Injecte tout le style CSS de l'application (Style Disney+/Netflix)."""
     bg_64 = load_base64_image(BG_PATH)
     bg_css_val = f"data:image/jpeg;base64,{bg_64}" if bg_64 else SITE_BG_URL
 
@@ -33,7 +31,7 @@ def inject_css():
         background-color: #1a1a1a !important;
     }}
     
-    /* EFFET DE FOND IMMERSIF */
+    /* FOND IMMERSIF */
     .stApp::before {{
         content: ""; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
         background-image: url('{SITE_BG_URL}'); 
@@ -45,7 +43,7 @@ def inject_css():
         background-color: #000000; opacity: 0.85; z-index: -1;
     }}
 
-    /* NAVIGATION MODERNE (HEADER) */
+    /* HEADER NAVIGATION */
     div.stButton > button[kind="secondary"] {{
         background-color: transparent !important;
         border: none !important;
@@ -60,7 +58,7 @@ def inject_css():
         transform: translateY(-2px);
     }}
 
-    /* BOUTONS ROUGES RECTANGULAIRES COLLÉS (STYLE DISNEY+) */
+    /* BOUTONS ROUGES COLLÉS (STYLE DISNEY) */
     div.stButton > button[kind="primary"] {{ 
         color: white !important; 
         background-color: #D7001D !important; 
@@ -68,17 +66,15 @@ def inject_css():
         width: 100%; 
         font-weight: 800; 
         text-transform: uppercase; 
-        border-radius: 0 0 12px 12px !important; /* Arrondi bas seulement */
-        margin-top: -10px !important; /* Force le collage à l'image */
+        border-radius: 0 0 12px 12px !important;
+        margin-top: -12px !important; /* COMPRESSION POUR COLLER À L'IMAGE */
         height: 45px !important;
-        transition: 0.3s ease;
     }}
     div.stButton > button[kind="primary"]:hover {{
         background-color: #ff0022 !important;
-        box-shadow: 0 5px 15px rgba(215, 0, 29, 0.4);
     }}
     
-    /* HERO BANNER (ACCUEIL) */
+    /* HERO BANNER */
     .hero {{ 
         width: 100%; height: 70vh; 
         background-image: url('{bg_css_val}');
@@ -101,18 +97,11 @@ def inject_css():
 
     .movie-poster-img {{
         width: 100%;
-        border-radius: 12px 12px 0 0 !important; /* Arrondi haut seulement */
+        border-radius: 12px 12px 0 0 !important;
         object-fit: cover;
         aspect-ratio: 2/3;
         display: block;
         border: 1px solid #333;
-    }}
-
-    /* BARRE DE RECHERCHE DARK */
-    div[data-baseweb="input"] {{
-        background-color: #262626 !important;
-        border: 1px solid #D7001D !important;
-        border-radius: 10px !important;
     }}
 
     header, footer, #MainMenu {{visibility: hidden;}}
