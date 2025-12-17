@@ -67,7 +67,7 @@ def inject_css():
         font-weight: 800; 
         text-transform: uppercase; 
         border-radius: 0 0 12px 12px !important;
-        margin-top: -12px !important; /* COMPRESSION POUR COLLER À L'IMAGE */
+        margin-top: -12px !important; 
         height: 45px !important;
     }}
     div.stButton > button[kind="primary"]:hover {{
@@ -102,6 +102,24 @@ def inject_css():
         aspect-ratio: 2/3;
         display: block;
         border: 1px solid #333;
+    }}
+
+    /* --- NOUVEAU STYLE CASTING (AGRANDI ET JOLI) --- */
+
+    .cast-img {{
+        width: 110px;
+        height: 110px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid #D7001D;
+        margin-bottom: 10px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }}
+
+    /* SELECTBOX */
+    div[data-baseweb="select"] {{
+        border: 1px solid #D7001D !important;
+        border-radius: 8px !important;
     }}
 
     header, footer, #MainMenu {{visibility: hidden;}}
