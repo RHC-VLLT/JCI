@@ -1,180 +1,103 @@
 import streamlit as st
 import pandas as pd
-import config
-import backend
-from utils import get_poster_url
+
+def translate_profession(prof):
+    if not isinstance(prof, str): return ""
+    trad = {
+        "actor": "Acteur", "actress": "Actrice", "director": "Réalisateur",
+        "writer": "Scénariste", "producer": "Producteur", "composer": "Compositeur"
+    }
+    parts = [p.strip().lower() for p in prof.split(",")]
+    return ", ".join([trad.get(p, p.capitalize()) for p in parts])
 
 def show_acteurs():
-    # --- CSS SPECIFIQUE ---
-    st.markdown("""
-    <style>
-    .actor-card {
-        border: 1px solid #333;
-        border-radius: 12px;
-        padding: 24px;
-        background: linear-gradient(180deg, rgba(30,30,30,0.95) 0%, rgba(10,10,10,0.95) 100%);
-        box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-        margin-top: 20px;
-    }
-    .actor-name-title {
-        font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem;
-        text-align: center; color: #D7001D;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-    }
+    # Récupération des données depuis le session_state (chargées dans app.py)
+    df_actors = st.session_state.get('df_people')
+    df_links = st.session_state.get('df_link')
+    df_movies = st.session_state.get('df_movie')
+
+    st.markdown("<h1 style='text-align:center; margin-bottom:30px;'>🎭 TALENTS DU CINÉMA</h1>", unsafe_allow_html=True)
+
+    # --- BARRE DE RECHERCHE ---
+    all_names = sorted(df_actors['person_name'].dropna().unique().tolist())
     
-    /* Uniformisation des images de la grille */
-    div[data-testid="stImage"] img {
-        height: 300px;
-        object-fit: cover;
-        border-radius: 8px;
-    }
-
-    /* Masquer le bouton standard s'il gêne */
-    div[data-testid="stToolbar"] {visibility: hidden;}
-    </style>
-    """, unsafe_allow_html=True)
-
-    # --- CHARGEMENT DONNÉES ---
-    df_movies, df_actors, df_links = backend.load_data()
-
-    # --- FONCTIONS LOCALES ---
-    def get_profile_url(row):
-        """Retourne l'image de profil ou une image par défaut si absente."""
-        # URL d'une image "Avatar par défaut" (libre de droit)
-        default_img = "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png"
-        
-        # Vérifie si la colonne existe
-        if 'tmdb_profile_url' not in row.index:
-            return default_img
-            
-        url = row['tmdb_profile_url']
-        
-        # Vérifie si l'URL est valide (pas vide, pas NaN)
-        if pd.isna(url) or str(url).strip() == "" or str(url).lower() == "nan":
-            return default_img
-            
-        return url
-
-    def translate_profession(prof):
-        if not isinstance(prof, str): return ""
-        trad = {"actor": "Acteur", "actress": "Actrice", "director": "Réalisateur", "writer": "Scénariste"}
-        parts = [p.strip().lower() for p in prof.split(",")]
-        return ", ".join([trad.get(p, p.capitalize()) for p in parts])
-
-    # --- HEADER / RETOUR ---
-    c_logo, c_nav = st.columns([1, 4])
-    with c_logo:
-        logo_b64 = config.load_base64_image(config.LOGO_PATH)
-        if logo_b64:
-            st.markdown(f'<img src="data:image/png;base64,{logo_b64}" width="100">', unsafe_allow_html=True)
-            
-    with c_nav:
-        # BOUTON RETOUR : On change juste la variable de session
-        if st.button("🏠 RETOUR ACCUEIL", key="btn_back_home"):
-            st.session_state['current_page'] = 'home'
-            st.rerun()
-
-    st.markdown("<h1 style='text-align:center;'>EXPLORATEUR DE TALENTS 🎭</h1>", unsafe_allow_html=True)
-    st.markdown("---")
-
-    # --- ÉTAT LOCAL ---
-    if 'selected_actor_id' not in st.session_state:
-        st.session_state.selected_actor_id = None
-
-    # --- RECHERCHE ---
-    if not df_actors.empty:
-        # On s'assure que la colonne nom existe
-        name_col = 'person_name' if 'person_name' in df_actors.columns else 'intervenant_primaryName'
-        all_names = sorted(df_actors[name_col].dropna().unique().tolist())
-    else:
-        all_names = []
-
     c1, c2 = st.columns([4, 1])
     with c1:
-        search_name = st.selectbox("Rechercher", [""] + all_names, label_visibility="collapsed")
+        search_name = st.selectbox(
+            "Rechercher un talent",
+            options=[""] + all_names,
+            format_func=lambda x: "🔎 Chercher un acteur, réalisateur..." if x == "" else x,
+            label_visibility="collapsed"
+        )
     with c2:
-        if st.button("CHERCHER", use_container_width=True):
-            if search_name:
-                found = df_actors[df_actors[name_col] == search_name]
-                if not found.empty:
-                    st.session_state.selected_actor_id = found.iloc[0]['nconst']
-                    st.rerun()
+        if st.button("RECHERCHER", use_container_width=True) and search_name:
+            found = df_actors[df_actors['person_name'] == search_name]
+            if not found.empty:
+                st.session_state.detail_actor_id = found.iloc[0]['nconst']
+                st.rerun()
 
-    # --- AFFICHAGE ---
-    if st.session_state.selected_actor_id:
-        # MODE DETAIL
-        actor = df_actors[df_actors['nconst'] == st.session_state.selected_actor_id].iloc[0]
+    st.markdown("---")
+
+    # --- LOGIQUE D'AFFICHAGE ---
+    detail_actor_id = st.session_state.get('detail_actor_id')
+
+    if detail_actor_id:
+        # >>> VUE DÉTAIL DE L'ACTEUR <<<
+        actor = df_actors[df_actors['nconst'] == detail_actor_id].iloc[0]
         
-        if st.button("⬅ Retour aux tendances"):
-            st.session_state.selected_actor_id = None
+        if st.button("⬅ RETOUR AUX TENDANCES"):
+            st.session_state.detail_actor_id = None
             st.rerun()
 
-        col1, col2 = st.columns([1, 2.5], gap="large")
-        with col1:
-            st.image(get_profile_url(actor), use_container_width=True)
-            # Nom en dessous de l'image
-            st.markdown(f"<div class='actor-name-title'>{actor[name_col]}</div>", unsafe_allow_html=True)
+        col_img, col_info = st.columns([1, 2.5], gap="large")
+        
+        with col_img:
+            # Photo
+            img_path = actor.get('tmdb_profile_url')
+            if pd.isna(img_path) or str(img_path) == "nan":
+                img_path = "https://via.placeholder.com/500x750?text=Image+Non+Disponible"
+            st.image(img_path, use_container_width=True)
+            st.markdown(f"<h2 style='text-align:center;'>{actor['person_name']}</h2>", unsafe_allow_html=True)
+
+        with col_info:
+            st.markdown('<div class="detail-container" style="padding:20px; background:rgba(255,255,255,0.05); border-radius:15px;">', unsafe_allow_html=True)
+            prof_str = translate_profession(actor.get('person_professions'))
+            birth = int(actor['person_birthYear']) if pd.notna(actor.get('person_birthYear')) and actor.get('person_birthYear') != 0 else "?"
             
-        with col2:
-            st.markdown('<div class="actor-card">', unsafe_allow_html=True)
-            prof = translate_profession(actor.get('person_professions', ''))
-            st.markdown(f"**Métier:** {prof}")
-            
-            # Gestion année de naissance
-            birth = actor.get('person_birthYear') or actor.get('intervenant_birthYear')
-            year_display = int(birth) if pd.notna(birth) else "?"
-            st.markdown(f"**Naissance:** {year_display}")
-            
+            st.markdown(f"**Métier :** {prof_str}")
+            st.markdown(f"**Année de naissance :** {birth}")
             st.markdown("### Biographie")
-            st.write(actor.get('tmdb_biography_fr', 'Non disponible.'))
-            st.markdown("</div>", unsafe_allow_html=True)
-        
-        # Filmographie
+            bio = actor.get('tmdb_biography_fr')
+            st.write(bio if pd.notna(bio) and str(bio).lower() != 'nan' else "Biographie non disponible.")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        # Section Filmographie
         st.markdown("### 🎞️ Filmographie")
-        tconsts = df_links[df_links['nconst'] == actor['nconst']]['tconst'].tolist()
-        if tconsts:
-            movies = df_movies[df_movies['tconst'].isin(tconsts)]
-            if not movies.empty:
-                # Tri par date
-                if 'movie_startYear' in movies.columns:
-                    movies = movies.sort_values('movie_startYear', ascending=False)
-                    
+        actor_tconsts = df_links[df_links['nconst'] == actor['nconst']]['tconst'].tolist()
+        
+        if actor_tconsts:
+            my_movies = df_movies[df_movies['tconst'].isin(actor_tconsts)]
+            if not my_movies.empty:
                 cols = st.columns(5)
-                for i, (_, m) in enumerate(movies.iterrows()):
+                for i, (_, film) in enumerate(my_movies.iterrows()):
                     with cols[i % 5]:
-                        poster = get_poster_url(m) # Importé de utils
-                        if poster: 
-                            st.image(poster, use_container_width=True)
-                        else:
-                            st.image("https://via.placeholder.com/300x450?text=No+Poster", use_container_width=True)
-                        st.caption(f"**{m.get('display_title')}**")
-    else:
-        # MODE GRILLE - EN VEDETTE
-        st.subheader("🔥 En vedette")
-        
-        # --- TRI PAR POPULARITÉ ---
-        # On vérifie si la colonne popularité existe
-        pop_col = 'tmdb_popularity'
-        
-        if pop_col in df_actors.columns:
-            # On convertit en numérique pour être sûr du tri
-            df_actors[pop_col] = pd.to_numeric(df_actors[pop_col], errors='coerce').fillna(0)
-            # On prend les 12 plus grands scores
-            top_actors = df_actors.sort_values(by=pop_col, ascending=False).head(12)
+                        poster = film.get('movie_poster_url_fr') or "https://via.placeholder.com/300x450?text=No+Poster"
+                        st.image(poster, use_container_width=True)
+                        st.caption(f"**{film.get('display_title')}**")
         else:
-            # Fallback si pas de colonne popularité
-            top_actors = df_actors.head(12)
-            
+            st.info("Aucun film trouvé pour cet artiste.")
+
+    else:
+        # >>> VUE GRILLE TENDANCE <<<
+        st.subheader("🔥 En vedette")
+        # On prend les acteurs qui ont une photo en priorité
+        top_actors = df_actors.dropna(subset=['tmdb_profile_url']).head(12)
+        
         cols = st.columns(6)
-        for i, (_, row) in enumerate(top_actors.iterrows()):
-            with cols[i % 6]:
-                # On utilise la nouvelle fonction get_profile_url qui gère l'image par défaut
-                st.image(get_profile_url(row), use_container_width=True)
-                
-                # Nom de l'acteur
-                name_val = row.get('person_name') or row.get('intervenant_primaryName')
-                st.markdown(f"**{name_val}**")
-                
-                if st.button("VOIR", key=f"grid_{row['nconst']}", use_container_width=True):
-                    st.session_state.selected_actor_id = row['nconst']
+        for idx, (_, row) in enumerate(top_actors.iterrows()):
+            with cols[idx % 6]:
+                st.image(row['tmdb_profile_url'], use_container_width=True)
+                st.markdown(f"<p style='text-align:center; font-weight:bold;'>{row['person_name']}</p>", unsafe_allow_html=True)
+                if st.button("VOIR PROFIL", key=f"grid_{row['nconst']}", use_container_width=True):
+                    st.session_state.detail_actor_id = row['nconst']
                     st.rerun()
