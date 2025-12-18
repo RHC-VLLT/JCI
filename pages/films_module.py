@@ -6,7 +6,7 @@ import backend
 
 DEFAULT_USER_IMG = "https://cdn-icons-png.flaticon.com/512/149/149071.png"
 
-# Dictionnaire de traduction des genres pour l'affichage propre
+# Dictionnaire de traduction des genres
 GENRE_TRADUCTION = {
     "Action": "Action", "Adventure": "Aventure", "Animation": "Animation",
     "Biography": "Biographie", "Comedy": "Comédie", "Crime": "Crime",
@@ -32,13 +32,13 @@ def show_films():
             st.session_state.detail_tconst = None
             st.rerun()
 
+        # Layout principal : Affiche à gauche, Infos à droite
         col1, col2 = st.columns([1, 2], gap="large")
         
         with col1: 
-            # Affichage de l'affiche
             st.image(get_poster_url(m), use_container_width=True)
             
-            # --- AFFICHAGE DE LA NOTE ---
+            # --- AFFICHAGE DE LA NOTE (Badge Rouge) ---
             note = m.get('movie_averageRating') or m.get('averageRating')
             if pd.notna(note) and note != 0:
                 st.markdown(f"""
@@ -53,27 +53,24 @@ def show_films():
             
             # --- INFOS : ANNÉE • GENRES • PAYS ---
             pays_val = m.get('movie_country') or m.get('country')
-            pays_str = f" • {pays_val}" if pd.notna(pays_val) and pays_val != "" else ""
+            pays_str = f" • {pays_val}" if pd.notna(pays_val) and str(pays_val).strip() != "" else ""
             
-            # Traduction des genres pour la ligne d'info
             genres_raw = str(m.get('movie_genres_y', '')).split(',')
             genres_traduits = [GENRE_TRADUCTION.get(g.strip(), g.strip()) for g in genres_raw]
             genres_str = ", ".join(genres_traduits)
 
-            st.markdown(f"<p style='font-weight:700; color:#888; font-size:1.2rem;'>{int(m['movie_startYear'])} • {genres_str}{pays_str}</p>", unsafe_allow_html=True)
+            st.markdown(f"""
+                <p style='font-weight:700; color:white !important; font-size:1.2rem; margin-top:0;'>
+                    {int(m['movie_startYear'])} • {genres_str}{pays_str}
+                </p>
+            """, unsafe_allow_html=True)
             
             # Synopsis
-            st.markdown(f'''<div style="border-left:4px solid #D7001D; padding-left:15px; font-style:italic; margin-bottom:20px; font-size:1.1rem;">"{m.get("movie_overview_fr") or m.get("movie_overview") or "Résumé non disponible."}"</div>''', unsafe_allow_html=True)
+            st.markdown(f'''<div style="border-left:4px solid #D7001D; padding-left:15px; font-style:italic; margin-bottom:20px; font-size:1.1rem; color:white;">"{m.get("movie_overview_fr") or m.get("movie_overview") or "Résumé non disponible."}"</div>''', unsafe_allow_html=True)
             
-            st.write(f"**Réalisation :** {', '.join(reals)}")
+            st.markdown(f"<p style='color:white;'><strong>Réalisation :</strong> {', '.join(reals)}</p>", unsafe_allow_html=True)
             
-            # --- BANDE-ANNONCE (TRAILER) ---
-            trailer_url = m.get('movie_trailer_url') or m.get('trailer_url')
-            if pd.notna(trailer_url) and "youtube.com" in str(trailer_url):
-                st.markdown("<br><h3 style='color:#D7001D; text-transform:uppercase;'>Bande-annonce</h3>", unsafe_allow_html=True)
-                st.video(trailer_url)
-            
-            # --- CASTING ---
+            # --- SECTION CASTING ---
             st.markdown("<br><h3 style='color:#D7001D; text-transform:uppercase;'>Casting</h3>", unsafe_allow_html=True)
             c_cols = st.columns(4) 
             for i, act in enumerate(casting[:8]):
@@ -89,9 +86,20 @@ def show_films():
                             st.session_state.current_page = "ACTEURS"
                             st.rerun()
 
+        # --- SECTION BANDE-ANNONCE (LARGE, EN BAS DE PAGE) ---
+        tr = m.get('trailer_url_fr') or m.get('youtube_url')
+        if pd.notna(tr) and "http" in str(tr):
+            st.markdown("<br><hr style='border-top: 1px solid rgba(255,255,255,0.1);'><br>", unsafe_allow_html=True)
+            st.markdown("<h3 style='color:#D7001D; text-transform:uppercase; text-align:center;'>Bande-Annonce Officielle</h3>", unsafe_allow_html=True)
+            
+            # Conteneur centré pour la vidéo
+            v_col1, v_col2, v_col3 = st.columns([0.1, 0.8, 0.1])
+            with v_col2:
+                st.video(tr)
+
     else:
         # --- VUE BIBLIOTHÈQUE ---
-        st.markdown("<h1 style='text-align:center;'>BIBLIOTHÈQUE</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align:center; color:white;'>BIBLIOTHÈQUE</h1>", unsafe_allow_html=True)
         c1, c2 = st.columns([3, 1])
         
         with c1: 
