@@ -53,7 +53,7 @@ def show_films():
         tr = m.get('trailer_url_fr') or m.get('youtube_url')
         if pd.notna(tr) and "http" in str(tr):
             st.markdown("---")
-            st.markdown("<h3 style='text-transform:uppercase;'>🎬 Bande-Annonce Officielle</h3>", unsafe_allow_html=True)
+            st.markdown("<h3 style='text-transform:uppercase;'>Bande-Annonce Officielle</h3>", unsafe_allow_html=True)
             st.video(tr)
 
     else:
