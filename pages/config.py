@@ -23,7 +23,7 @@ def inject_css():
     /* CONFIGURATION GLOBALE */
     html, body, [class*="css"], .stApp {{
         font-family: 'Montserrat', sans-serif;
-        color: #FFFFFF !important;
+        color: #FFFFFF ;
     }}
     
     /* FOND IMMERSIF FIXE */
@@ -36,55 +36,55 @@ def inject_css():
 
     /* HEADER NAVIGATION : LOGO TEXTE "JUST CREUSE IT" */
     div.stButton > button[key="logo_home"] {{
-        background-color: transparent !important;
-        border: none !important;
-        color: #D7001D !important;
-        font-family: 'Oswald', sans-serif !important;
-        font-size: 2.5rem !important; /* Taille augmentée pour l'effet logo */
-        font-weight: 900 !important;
-        letter-spacing: -1.5px !important;
-        text-transform: uppercase !important;
-        padding: 0 !important;
-        transition: 0.3s ease-in-out !important;
-        line-height: 1 !important;
+        background-color: transparent ;
+        border: none ;
+        color: #D7001D ;
+        font-family: 'Oswald', sans-serif ;
+        font-size: 2.5rem ; /* Taille augmentée pour l'effet logo */
+        font-weight: 900 ;
+        letter-spacing: -1.5px ;
+        text-transform: uppercase ;
+        padding: 0 ;
+        transition: 0.3s ease-in-out ;
+        line-height: 1 ;
     }}
     div.stButton > button[key="logo_home"]:hover {{
-        color: #ff4d4d !important;
+        color: #ff4d4d ;
         transform: scale(1.03);
         text-shadow: 0px 0px 15px rgba(215, 0, 29, 0.4);
     }}
 
     /* AUTRES BOUTONS DE NAVIGATION (FILMS / ACTEURS) */
     div.stButton > button[kind="secondary"] {{
-        background-color: transparent !important;
-        border: none !important;
-        color: white !important;
-        font-weight: 700 !important;
-        font-size: 1rem !important;
-        text-transform: uppercase !important;
-        margin-top: 18px !important;
+        background-color: transparent ;
+        border: none ;
+        color: white ;
+        font-weight: 700 ;
+        font-size: 1rem ;
+        text-transform: uppercase ;
+        margin-top: 18px ;
     }}
     div.stButton > button[kind="secondary"]:hover {{
-        color: #D7001D !important;
+        color: #D7001D ;
     }}
 
     /* BOUTONS ROUGES DÉTAILS */
     div.stButton > button[kind="primary"] {{ 
-        color: white !important; 
-        background-color: #D7001D !important; 
-        border: none !important; 
+        color: white ; 
+        background-color: #D7001D ; 
+        border: none ; 
         width: 100%; 
         font-weight: 800; 
         text-transform: uppercase; 
-        border-radius: 0 0 12px 12px !important;
-        margin-top: -12px !important; 
-        height: 45px !important;
+        border-radius: 0 0 12px 12px ;
+        margin-top: -12px ; 
+        height: 45px ;
     }}
 
     /* AFFICHES FILMS */
     .movie-poster-img {{
         width: 100%;
-        border-radius: 12px 12px 0 0 !important;
+        border-radius: 12px 12px 0 0 ;
         object-fit: cover;
         aspect-ratio: 2/3;
         display: block;
