@@ -25,6 +25,16 @@ def show_films():
     detail_id = st.session_state.get('detail_tconst')
 
     if detail_id:
+        # --- FORCER LE SCROLL EN HAUT AU CHARGEMENT DES DÉTAILS ---
+        st.components.v1.html(
+            """
+            <script>
+                window.parent.document.querySelector('.stApp').scrollTo(0, 0);
+            </script>
+            """,
+            height=0,
+        )
+
         # --- VUE DÉTAILLÉE DU FILM ---
         m = df_movie[df_movie['tconst'] == detail_id].iloc[0]
         reals, casting = backend.get_movie_cast_info(m['tconst'], df_link, df_people)
@@ -36,26 +46,26 @@ def show_films():
         col1, col2 = st.columns([1, 2], gap="large")
         
         with col1: 
-            # Sécurisation de l'affiche : si l'URL est vide ou invalide, on met un placeholder
             poster_url = get_poster_url(m)
             if not poster_url or pd.isna(poster_url) or str(poster_url).strip() == "":
                 poster_url = DEFAULT_MOVIE_POSTER
             
             st.image(poster_url, use_container_width=True)
             
-            # --- AFFICHAGE DE LA NOTE ---
+            # --- AFFICHAGE DE LA NOTE SOBRE (SANS BORDURE BLANCHE) ---
             note = m.get('movie_vote_average_tmdb')
             if pd.notna(note) and note != 0:
                 st.markdown(f"""
-                    <div style="background-color:#D7001D; border-radius:10px; padding:15px; text-align:center; margin-top:15px; border: 1px solid white;">
-                        <span style="font-size:1.4rem; font-weight:900; color:white;">NOTE : {note}/10</span>
+                    <div style="background-color:#D7001D; border-radius:10px; padding:15px; text-align:center; margin-top:15px;">
+                        <span style="font-size:1.4rem; font-weight:900; color:white; text-transform: uppercase;">
+                            NOTE : {note}/10
+                        </span>
                     </div>
                 """, unsafe_allow_html=True)
 
         with col2:
             st.markdown(f"<h1 style='color:#D7001D; font-size:3.5rem; margin-bottom:0;'>{m['display_title'].upper()}</h1>", unsafe_allow_html=True)
             
-            # --- INFOS : ANNÉE • GENRES • PAYS ---
             pays_val = m.get('production_1_countries_name')
             pays_str = f" • {pays_val}" if pd.notna(pays_val) and str(pays_val).strip() != "" else ""
             
@@ -69,18 +79,15 @@ def show_films():
                 </p>
             """, unsafe_allow_html=True)
             
-            # Synopsis
             st.markdown(f'''<div style="border-left:4px solid #D7001D; padding-left:15px; font-style:italic; margin-bottom:20px; font-size:1.1rem; color:white;">"{m.get("movie_overview_fr") or m.get("movie_overview") or "Résumé non disponible."}"</div>''', unsafe_allow_html=True)
             
             st.markdown(f"<p style='color:white;'><strong>Réalisation :</strong> {', '.join(reals)}</p>", unsafe_allow_html=True)
             
-            # --- SECTION CASTING ---
             st.markdown("<br><h3 style='color:#D7001D; text-transform:uppercase;'>Casting</h3>", unsafe_allow_html=True)
             c_cols = st.columns(4) 
             for i, act in enumerate(casting[:8]):
                 with c_cols[i % 4]:
                     pic = act.get('photo')
-                    # Sécurisation photo acteur
                     if not pic or pd.isna(pic) or str(pic).strip() == "" or str(pic).lower() == "nan":
                         pic = DEFAULT_USER_IMG
                     
@@ -93,7 +100,6 @@ def show_films():
                             st.session_state.current_page = "ACTEURS"
                             st.rerun()
 
-        # --- SECTION BANDE-ANNONCE (LARGE EN BAS) ---
         tr = m.get('trailer_url_fr') or m.get('youtube_url')
         if pd.notna(tr) and "http" in str(tr):
             st.markdown("<br><hr style='border-top: 1px solid rgba(255,255,255,0.1);'><br>", unsafe_allow_html=True)
@@ -106,20 +112,35 @@ def show_films():
     else:
         # --- VUE BIBLIOTHÈQUE ---
         st.markdown("<h1 style='text-align:center; color:white;'>BIBLIOTHÈQUE</h1>", unsafe_allow_html=True)
-        c1, c2 = st.columns([3, 1])
         
-        with c1: 
-            search = st.text_input("Titre", placeholder="Chercher un film...", label_visibility="collapsed", key="search_f")
+        # --- LIGNE 1 : RECHERCHE PAR SÉLECTION ET GENRE ALIGNÉS ---
+        c_search, c_genre = st.columns([3, 1])
         
-        with c2: 
+        all_movie_names = sorted(df_movie['display_title'].dropna().unique().tolist())
+        
+        def on_movie_search_change():
+            if st.session_state.movie_search_key:
+                found = df_movie[df_movie['display_title'] == st.session_state.movie_search_key]
+                if not found.empty:
+                    st.session_state.detail_tconst = found.iloc[0].get('tconst')
+
+        with c_search:
+            st.selectbox(
+                "Chercher un film", 
+                options=[""] + all_movie_names, 
+                index=0, 
+                key="movie_search_key", 
+                on_change=on_movie_search_change, 
+                label_visibility="collapsed"
+            )
+        
+        with c_genre:
             genres_en = sorted(list(set([g.strip() for sl in df_movie['movie_genres_y'].dropna().str.split(',') for g in sl])))
             genres_fr = ["Tous les genres"] + [GENRE_TRADUCTION.get(g, g) for g in genres_en]
             genre_selectionne_fr = st.selectbox("Genre", genres_fr, label_visibility="collapsed")
 
+        # --- LIGNE 2 : SÉLECTION DE PAGE PLEINE LARGEUR ---
         df_f = df_movie.copy()
-        if search: 
-            df_f = df_f[df_f['display_title'].str.contains(search, case=False, na=False)]
-        
         if genre_selectionne_fr != "Tous les genres":
             genre_en_cible = [en for en, fr in GENRE_TRADUCTION.items() if fr == genre_selectionne_fr]
             if genre_en_cible:
@@ -128,11 +149,13 @@ def show_films():
         limit = 20
         total_p = math.ceil(len(df_f)/limit) or 1
         p = st.number_input("Page", min_value=1, max_value=total_p, step=1)
+
+        st.markdown("<br>", unsafe_allow_html=True)
         
+        # --- GRILLE DE FILMS ---
         grid = st.columns(5)
         for idx, (_, row) in enumerate(df_f.iloc[(p-1)*limit : p*limit].iterrows()):
             with grid[idx % 5]:
-                # Sécurisation de l'affiche dans la grille
                 p_url = get_poster_url(row)
                 if not p_url or pd.isna(p_url) or str(p_url).strip() == "":
                     p_url = DEFAULT_MOVIE_POSTER

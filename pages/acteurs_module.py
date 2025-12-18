@@ -13,7 +13,7 @@ def show_acteurs():
     df_links = st.session_state.get('df_link')
     df_movies = st.session_state.get('df_movie')
 
-    st.markdown("<h1 style='text-align:center; margin-bottom:30px;'>🎭 TALENTS DU CINÉMA</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center; margin-bottom:30px;'> TALENTS DU CINÉMA</h1>", unsafe_allow_html=True)
 
     all_names = sorted(df_actors['person_name'].dropna().unique().tolist())
     def on_actor_change():
