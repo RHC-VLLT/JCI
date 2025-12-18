@@ -52,7 +52,7 @@ def show_films():
             
             st.image(poster_url, use_container_width=True)
             
-            # --- AFFICHAGE DE LA NOTE SOBRE (SANS BORDURE BLANCHE) ---
+            # --- AFFICHAGE DE LA NOTE SOBRE ---
             note = m.get('movie_vote_average_tmdb')
             if pd.notna(note) and note != 0:
                 st.markdown(f"""
@@ -113,8 +113,9 @@ def show_films():
         # --- VUE BIBLIOTHÈQUE ---
         st.markdown("<h1 style='text-align:center; color:white;'>BIBLIOTHÈQUE</h1>", unsafe_allow_html=True)
         
-        # --- LIGNE 1 : RECHERCHE PAR SÉLECTION ET GENRE ALIGNÉS ---
-        c_search, c_genre = st.columns([3, 1])
+        # --- LIGNE UNIQUE : RECHERCHE, GENRE ET PAGE ---
+        # On définit des colonnes précises pour que tout tienne sur une ligne
+        c_search, c_genre, c_page = st.columns([2, 1, 0.8])
         
         all_movie_names = sorted(df_movie['display_title'].dropna().unique().tolist())
         
@@ -139,7 +140,7 @@ def show_films():
             genres_fr = ["Tous les genres"] + [GENRE_TRADUCTION.get(g, g) for g in genres_en]
             genre_selectionne_fr = st.selectbox("Genre", genres_fr, label_visibility="collapsed")
 
-        # --- LIGNE 2 : SÉLECTION DE PAGE PLEINE LARGEUR ---
+        # Calcul du nombre de pages pour le number_input
         df_f = df_movie.copy()
         if genre_selectionne_fr != "Tous les genres":
             genre_en_cible = [en for en, fr in GENRE_TRADUCTION.items() if fr == genre_selectionne_fr]
@@ -148,13 +149,20 @@ def show_films():
 
         limit = 20
         total_p = math.ceil(len(df_f)/limit) or 1
-        p = st.number_input("Page", min_value=1, max_value=total_p, step=1)
+
+        with c_page:
+            # On utilise label_visibility="collapsed" pour masquer le mot "Page" au dessus
+            # Le bouton + / - est conservé par le composant number_input
+            p = st.number_input("Page", min_value=1, max_value=total_p, step=1, label_visibility="collapsed")
 
         st.markdown("<br>", unsafe_allow_html=True)
         
         # --- GRILLE DE FILMS ---
         grid = st.columns(5)
-        for idx, (_, row) in enumerate(df_f.iloc[(p-1)*limit : p*limit].iterrows()):
+        start_idx = (p - 1) * limit
+        end_idx = p * limit
+        
+        for idx, (_, row) in enumerate(df_f.iloc[start_idx:end_idx].iterrows()):
             with grid[idx % 5]:
                 p_url = get_poster_url(row)
                 if not p_url or pd.isna(p_url) or str(p_url).strip() == "":
