@@ -75,7 +75,7 @@ else:
 
         if not st.session_state.show_all_recos and len(others) > 0:
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button(f"VOIR TOUTES LES AUTRES SUGGESTIONS (+{len(others)} FILMS) ↓", use_container_width=True):
+            if st.button(f"VOIR TOUTES LES AUTRES SUGGESTIONS ↓", use_container_width=True):
                 st.session_state.show_all_recos = True
                 st.rerun()
 

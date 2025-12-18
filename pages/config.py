@@ -4,7 +4,7 @@ import base64
 
 # --- CONSTANTES ---
 SITE_BG_URL = "https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?q=80&w=2070&auto=format&fit=crop"
-BG_PATH = "../assets/Acceuil_Pic_1_Page_1.jpg"
+BG_PATH = "../assets/popcorn.jpg"
 
 def load_base64_image(path):
     if not os.path.exists(path):

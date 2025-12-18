@@ -5,6 +5,7 @@ from utils import get_poster_url
 import backend
 
 DEFAULT_USER_IMG = "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+DEFAULT_MOVIE_POSTER = "https://via.placeholder.com/600x900?text=Affiche+Indisponible"
 
 # Dictionnaire de traduction des genres
 GENRE_TRADUCTION = {
@@ -32,14 +33,18 @@ def show_films():
             st.session_state.detail_tconst = None
             st.rerun()
 
-        # Layout principal : Affiche à gauche, Infos à droite
         col1, col2 = st.columns([1, 2], gap="large")
         
         with col1: 
-            st.image(get_poster_url(m), use_container_width=True)
+            # Sécurisation de l'affiche : si l'URL est vide ou invalide, on met un placeholder
+            poster_url = get_poster_url(m)
+            if not poster_url or pd.isna(poster_url) or str(poster_url).strip() == "":
+                poster_url = DEFAULT_MOVIE_POSTER
             
-            # --- AFFICHAGE DE LA NOTE (Badge Rouge) ---
-            note = m.get('movie_averageRating') or m.get('averageRating')
+            st.image(poster_url, use_container_width=True)
+            
+            # --- AFFICHAGE DE LA NOTE ---
+            note = m.get('movie_vote_average_tmdb')
             if pd.notna(note) and note != 0:
                 st.markdown(f"""
                     <div style="background-color:#D7001D; border-radius:10px; padding:15px; text-align:center; margin-top:15px; border: 1px solid white;">
@@ -48,11 +53,10 @@ def show_films():
                 """, unsafe_allow_html=True)
 
         with col2:
-            # Titre
             st.markdown(f"<h1 style='color:#D7001D; font-size:3.5rem; margin-bottom:0;'>{m['display_title'].upper()}</h1>", unsafe_allow_html=True)
             
             # --- INFOS : ANNÉE • GENRES • PAYS ---
-            pays_val = m.get('movie_country') or m.get('country')
+            pays_val = m.get('production_1_countries_name')
             pays_str = f" • {pays_val}" if pd.notna(pays_val) and str(pays_val).strip() != "" else ""
             
             genres_raw = str(m.get('movie_genres_y', '')).split(',')
@@ -76,7 +80,10 @@ def show_films():
             for i, act in enumerate(casting[:8]):
                 with c_cols[i % 4]:
                     pic = act.get('photo')
-                    pic = pic if pd.notna(pic) and str(pic).lower() not in ["nan", ""] else DEFAULT_USER_IMG
+                    # Sécurisation photo acteur
+                    if not pic or pd.isna(pic) or str(pic).strip() == "" or str(pic).lower() == "nan":
+                        pic = DEFAULT_USER_IMG
+                    
                     st.markdown(f'''<div class="cast-container"><img src="{pic}" class="cast-img"></div>''', unsafe_allow_html=True)
                     
                     act_id = act.get('nconst') or act.get('nconst_x')
@@ -86,13 +93,12 @@ def show_films():
                             st.session_state.current_page = "ACTEURS"
                             st.rerun()
 
-        # --- SECTION BANDE-ANNONCE (LARGE, EN BAS DE PAGE) ---
+        # --- SECTION BANDE-ANNONCE (LARGE EN BAS) ---
         tr = m.get('trailer_url_fr') or m.get('youtube_url')
         if pd.notna(tr) and "http" in str(tr):
             st.markdown("<br><hr style='border-top: 1px solid rgba(255,255,255,0.1);'><br>", unsafe_allow_html=True)
             st.markdown("<h3 style='color:#D7001D; text-transform:uppercase; text-align:center;'>Bande-Annonce Officielle</h3>", unsafe_allow_html=True)
             
-            # Conteneur centré pour la vidéo
             v_col1, v_col2, v_col3 = st.columns([0.1, 0.8, 0.1])
             with v_col2:
                 st.video(tr)
@@ -126,7 +132,12 @@ def show_films():
         grid = st.columns(5)
         for idx, (_, row) in enumerate(df_f.iloc[(p-1)*limit : p*limit].iterrows()):
             with grid[idx % 5]:
-                st.markdown(f'''<div class="movie-card-container"><img src="{get_poster_url(row)}" class="movie-poster-img"></div>''', unsafe_allow_html=True)
+                # Sécurisation de l'affiche dans la grille
+                p_url = get_poster_url(row)
+                if not p_url or pd.isna(p_url) or str(p_url).strip() == "":
+                    p_url = DEFAULT_MOVIE_POSTER
+                
+                st.markdown(f'''<div class="movie-card-container"><img src="{p_url}" class="movie-poster-img"></div>''', unsafe_allow_html=True)
                 if st.button("DÉTAILS", key=f"f_{row['tconst']}", type="primary", use_container_width=True):
                     st.session_state.detail_tconst = row['tconst']
                     st.rerun()
