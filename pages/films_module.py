@@ -83,6 +83,7 @@ def show_films():
             
             st.markdown(f"<p style='color:white;'><strong>Réalisation :</strong> {', '.join(reals)}</p>", unsafe_allow_html=True)
             
+            # --- SECTION CASTING ---
             st.markdown("<br><h3 style='color:#D7001D; text-transform:uppercase;'>Casting</h3>", unsafe_allow_html=True)
             c_cols = st.columns(4) 
             for i, act in enumerate(casting[:8]):
@@ -91,11 +92,20 @@ def show_films():
                     if not pic or pd.isna(pic) or str(pic).strip() == "" or str(pic).lower() == "nan":
                         pic = DEFAULT_USER_IMG
                     
-                    st.markdown(f'''<div class="cast-container"><img src="{pic}" class="cast-img"></div>''', unsafe_allow_html=True)
+                    nom_acteur = act.get("name", "Inconnu")
                     
+                    # On affiche l'image ET le nom en HTML (couleur BLANCHE forcée)
+                    st.markdown(f'''
+                        <div style="text-align:center; margin-bottom:10px;">
+                            <img src="{pic}" style="width:85px; height:85px; object-fit:cover; border-radius:50%; border:2px solid #D7001D; margin-bottom:5px;">
+                            <p style="color:white; font-size:0.9rem; font-weight:bold; margin:0; line-height:1.1;">{nom_acteur}</p>
+                        </div>
+                    ''', unsafe_allow_html=True)
+                    
+                    # Petit bouton discret pour la redirection
                     act_id = act.get('nconst') or act.get('nconst_x')
                     if act_id:
-                        if st.button(act.get("name", "Inconnu"), key=f"c_{act_id}_{i}", use_container_width=True):
+                        if st.button("Voir fiche", key=f"c_{act_id}_{i}", use_container_width=True):
                             st.session_state.detail_actor_id = act_id
                             st.session_state.current_page = "ACTEURS"
                             st.rerun()
@@ -114,8 +124,8 @@ def show_films():
         st.markdown("<h1 style='text-align:center; color:white;'>BIBLIOTHÈQUE</h1>", unsafe_allow_html=True)
         
         # --- LIGNE UNIQUE : RECHERCHE, GENRE ET PAGE ---
-        # On définit des colonnes précises pour que tout tienne sur une ligne
-        c_search, c_genre, c_page = st.columns([2, 1, 0.8])
+        # Ratios ajustés pour laisser plus de place aux genres multiples
+        c_search, c_genre, c_page = st.columns([1.2, 1.8, 0.8])
         
         all_movie_names = sorted(df_movie['display_title'].dropna().unique().tolist())
         
@@ -137,22 +147,30 @@ def show_films():
         
         with c_genre:
             genres_en = sorted(list(set([g.strip() for sl in df_movie['movie_genres_y'].dropna().str.split(',') for g in sl])))
-            genres_fr = ["Tous les genres"] + [GENRE_TRADUCTION.get(g, g) for g in genres_en]
-            genre_selectionne_fr = st.selectbox("Genre", genres_fr, label_visibility="collapsed")
+            genres_fr_dispo = sorted([GENRE_TRADUCTION.get(g, g) for g in genres_en])
+            
+            # Multiselect pour sélection multiple
+            genres_selectionnes_fr = st.multiselect(
+                "Genres", 
+                options=genres_fr_dispo, 
+                default=[], 
+                placeholder="Genres",
+                label_visibility="collapsed"
+            )
 
-        # Calcul du nombre de pages pour le number_input
+        # Calcul du filtrage
         df_f = df_movie.copy()
-        if genre_selectionne_fr != "Tous les genres":
-            genre_en_cible = [en for en, fr in GENRE_TRADUCTION.items() if fr == genre_selectionne_fr]
-            if genre_en_cible:
-                df_f = df_f[df_f['movie_genres_y'].str.contains(genre_en_cible[0], na=False)]
+        
+        if genres_selectionnes_fr:
+            for genre_fr in genres_selectionnes_fr:
+                genre_en_cible = [en for en, fr in GENRE_TRADUCTION.items() if fr == genre_fr]
+                if genre_en_cible:
+                    df_f = df_f[df_f['movie_genres_y'].str.contains(genre_en_cible[0], na=False)]
 
         limit = 20
         total_p = math.ceil(len(df_f)/limit) or 1
 
         with c_page:
-            # On utilise label_visibility="collapsed" pour masquer le mot "Page" au dessus
-            # Le bouton + / - est conservé par le composant number_input
             p = st.number_input("Page", min_value=1, max_value=total_p, step=1, label_visibility="collapsed")
 
         st.markdown("<br>", unsafe_allow_html=True)
