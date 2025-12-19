@@ -19,6 +19,7 @@ GENRE_TRADUCTION = {
 }
 
 def show_films():
+    """Fonction principale appelée par app.py pour afficher la bibliothèque ou les détails."""
     df_movie = st.session_state.get('df_movie')
     df_people = st.session_state.get('df_people')
     df_link = st.session_state.get('df_link')
@@ -52,7 +53,7 @@ def show_films():
             
             st.image(poster_url, use_container_width=True)
             
-            # --- AFFICHAGE DE LA NOTE SOBRE ---
+            # --- AFFICHAGE DE LA NOTE ---
             note = m.get('movie_vote_average_tmdb')
             if pd.notna(note) and note != 0:
                 st.markdown(f"""
@@ -94,7 +95,6 @@ def show_films():
                     
                     nom_acteur = act.get("name", "Inconnu")
                     
-                    # On affiche l'image ET le nom en HTML (couleur BLANCHE forcée)
                     st.markdown(f'''
                         <div style="text-align:center; margin-bottom:10px;">
                             <img src="{pic}" style="width:85px; height:85px; object-fit:cover; border-radius:50%; border:2px solid #D7001D; margin-bottom:5px;">
@@ -102,7 +102,6 @@ def show_films():
                         </div>
                     ''', unsafe_allow_html=True)
                     
-                    # Petit bouton discret pour la redirection
                     act_id = act.get('nconst') or act.get('nconst_x')
                     if act_id:
                         if st.button("Voir fiche", key=f"c_{act_id}_{i}", use_container_width=True):
@@ -123,19 +122,19 @@ def show_films():
         # --- VUE BIBLIOTHÈQUE ---
         st.markdown("<h1 style='text-align:center; color:white;'>BIBLIOTHÈQUE</h1>", unsafe_allow_html=True)
         
-        # --- LIGNE UNIQUE : RECHERCHE, GENRE ET PAGE ---
-        # Ratios ajustés pour laisser plus de place aux genres multiples
+        # --- TITRES AU-DESSUS DES FILTRES (AVEC MARGIN-BOTTOM 10PX) ---
         c_search, c_genre, c_page = st.columns([1.2, 1.8, 0.8])
         
-        all_movie_names = sorted(df_movie['display_title'].dropna().unique().tolist())
-        
-        def on_movie_search_change():
-            if st.session_state.movie_search_key:
-                found = df_movie[df_movie['display_title'] == st.session_state.movie_search_key]
-                if not found.empty:
-                    st.session_state.detail_tconst = found.iloc[0].get('tconst')
-
         with c_search:
+            st.markdown("<p style='color:#D7001D; font-weight:bold; margin-bottom:10px;'>RECHERCHE TITRE</p>", unsafe_allow_html=True)
+            all_movie_names = sorted(df_movie['display_title'].dropna().unique().tolist())
+            
+            def on_movie_search_change():
+                if st.session_state.movie_search_key:
+                    found = df_movie[df_movie['display_title'] == st.session_state.movie_search_key]
+                    if not found.empty:
+                        st.session_state.detail_tconst = found.iloc[0].get('tconst')
+
             st.selectbox(
                 "Chercher un film", 
                 options=[""] + all_movie_names, 
@@ -146,21 +145,20 @@ def show_films():
             )
         
         with c_genre:
+            st.markdown("<p style='color:#D7001D; font-weight:bold; margin-bottom:10px;'>FILTRER PAR GENRES</p>", unsafe_allow_html=True)
             genres_en = sorted(list(set([g.strip() for sl in df_movie['movie_genres_y'].dropna().str.split(',') for g in sl])))
             genres_fr_dispo = sorted([GENRE_TRADUCTION.get(g, g) for g in genres_en])
             
-            # Multiselect pour sélection multiple
             genres_selectionnes_fr = st.multiselect(
                 "Genres", 
                 options=genres_fr_dispo, 
                 default=[], 
-                placeholder="Genres",
+                placeholder="Choisir des genres",
                 label_visibility="collapsed"
             )
 
         # Calcul du filtrage
         df_f = df_movie.copy()
-        
         if genres_selectionnes_fr:
             for genre_fr in genres_selectionnes_fr:
                 genre_en_cible = [en for en, fr in GENRE_TRADUCTION.items() if fr == genre_fr]
@@ -171,6 +169,7 @@ def show_films():
         total_p = math.ceil(len(df_f)/limit) or 1
 
         with c_page:
+            st.markdown("<p style='color:#D7001D; font-weight:bold; margin-bottom:10px;'>PAGE</p>", unsafe_allow_html=True)
             p = st.number_input("Page", min_value=1, max_value=total_p, step=1, label_visibility="collapsed")
 
         st.markdown("<br>", unsafe_allow_html=True)
